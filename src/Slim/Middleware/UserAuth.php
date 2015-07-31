@@ -65,8 +65,11 @@ class UserAuth extends \Slim\Middleware
      * Call
      */
     public function call() {
+
         $this->app->user = $this;
+
         $this->next->call();
+
     }
 
     /**
@@ -81,6 +84,7 @@ class UserAuth extends \Slim\Middleware
             'database.username'   => null,
             'database.password'   => null,
             'database.options'    => array(),
+            'database.pepper'     => 'pepper',
             'table'               => 'users',
             'column.group'        => '_group',
             'column.email'        => 'email',
@@ -247,7 +251,7 @@ class UserAuth extends \Slim\Middleware
 
             $sth->execute();
 
-            $exists = ($sth->fetch() === false ? false : true);
+            $exists = $sth->fetch() === false ? false : true;
 
             $dbh = null;
 
@@ -278,20 +282,27 @@ class UserAuth extends \Slim\Middleware
 
             $dbh->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-            $sql = 'SELECT * FROM ' . $this->settings['table'] . ' WHERE ' . $this->settings['column.email'] . ' = :email AND ' . $this->settings['column.password'] . ' = :password';
+            $sql = 'SELECT ' . $this->settings['column.password'] . ' FROM ' . $this->settings['table'] . ' WHERE ' . $this->settings['column.email'] . ' = :email';
 
             $sth = $dbh->prepare($sql);
 
             $sth->bindParam(':email', $email);
-            $sth->bindParam(':password', $password);
 
             $sth->execute();
 
-            $unconfirmed = ($sth->fetch() === false ? false : true);
+            $hash = $sth->fetch(\PDO::FETCH_COLUMN);
 
             $dbh = null;
 
-            return $unconfirmed;
+            if (password_verify($password . $this->settings['database.pepper'], $hash)) {
+
+                return true;
+
+            } else {
+
+                return false;
+
+            }
 
         } catch (\PDOException $e) {
 
@@ -325,7 +336,7 @@ class UserAuth extends \Slim\Middleware
 
             $sth->execute();
 
-            $confirmed = ($sth->fetch() === false ? false : true);
+            $confirmed = $sth->fetch() === false ? false : true;
 
             $dbh = null;
 
@@ -429,6 +440,8 @@ class UserAuth extends \Slim\Middleware
      */
     public function register($group, $email, $password, $emailId, $registerKey) {
 
+        $password = password_hash($password . $this->settings['database.pepper'], PASSWORD_DEFAULT);
+
         try {
 
             $dbh = new \PDO($this->settings['database.dsn'], $this->settings['database.username'], $this->settings['database.password'], $this->settings['database.options']);
@@ -477,7 +490,7 @@ class UserAuth extends \Slim\Middleware
 
             $dbh->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-            $sql = 'UPDATE ' . $this->settings['table'] . ' SET ' . $this->settings['column.registerKey'] . ' = null WHERE ' . $this->settings['column.emailId'] . ' = :emailId AND ' . $this->settings['column.registerKey'] . ' = :registerKey';
+            $sql = 'UPDATE ' . $this->settings['table'] . ' SET ' . $this->settings['column.registerKey'] . ' = NULL WHERE ' . $this->settings['column.emailId'] . ' = :emailId AND ' . $this->settings['column.registerKey'] . ' = :registerKey';
 
             $sth = $dbh->prepare($sql);
 
@@ -515,7 +528,7 @@ class UserAuth extends \Slim\Middleware
 
             $dbh->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-            $sql = 'UPDATE Users SET ' . $this->settings['column.resetKey'] . ' = :resetKey WHERE ' . $this->settings['column.email'] . ' = :email';
+            $sql = 'UPDATE ' . $this->settings['table'] . ' SET ' . $this->settings['column.resetKey'] . ' = :resetKey WHERE ' . $this->settings['column.email'] . ' = :email';
 
             $sth = $dbh->prepare($sql);
 
@@ -540,13 +553,15 @@ class UserAuth extends \Slim\Middleware
 
     public function updatePassword($password, $emailId, $resetKey) {
 
+        $password = password_hash($password . $app->config('database.pepper'), PASSWORD_DEFAULT);
+
         try {
 
             $dbh = new \PDO($this->settings['database.dsn'], $this->settings['database.username'], $this->settings['database.password'], $this->settings['database.options']);
 
             $dbh->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-            $sql = 'UPDATE Users SET password = :password, ' . $this->settings['column.resetKey'] . ' = null WHERE ' . $this->settings['column.emailId'] . ' = :emailId AND ' . $this->settings['column.resetKey'] . ' = :resetKey';
+            $sql = 'UPDATE ' . $this->settings['table'] . ' SET password = :password, ' . $this->settings['column.resetKey'] . ' = NULL WHERE ' . $this->settings['column.emailId'] . ' = :emailId AND ' . $this->settings['column.resetKey'] . ' = :resetKey';
 
             $sth = $dbh->prepare($sql);
 
