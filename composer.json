@@ -1,8 +1,8 @@
 {
     "name": "slim/user-auth",
     "type": "library",
-    "description": "Slim Framework middleware",
-    "keywords": ["slim", "middleware"],
+    "description": "Slim Framework UserAuth Middleware",
+    "keywords": ["slim", "middleware", "user", "auth"],
     "homepage": "http://github.com/tristanmills/Slim-UserAuth",
     "license": "MIT",
     "authors": [
