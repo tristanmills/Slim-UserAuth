@@ -553,7 +553,7 @@ class UserAuth extends \Slim\Middleware
 
     public function updatePassword($password, $emailId, $resetKey) {
 
-        $password = password_hash($password . $app->config('database.pepper'), PASSWORD_DEFAULT);
+        $password = password_hash($password . $this->settings['database.pepper'], PASSWORD_DEFAULT);
 
         try {
 
